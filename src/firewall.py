@@ -510,9 +510,9 @@ def do_pf(port, dnsport, family, subnets, udp):
         rules = '\n'.join(tables + translating_rules + filtering_rules) + '\n'
 
         pf_status = pfctl('-s all')[0]
-        if not '\nrdr-anchor "sshuttle" all\n' in pf_status:
+        if not '\nrdr-anchor "sshuttle" all' in pf_status:
             pf_add_anchor_rule(PF_RDR, "sshuttle")        
-        if not '\nanchor "sshuttle" all\n' in pf_status:
+        if not '\nanchor "sshuttle" all' in pf_status:
             pf_add_anchor_rule(PF_PASS, "sshuttle")
 
         pfctl('-a sshuttle -f /dev/stdin', rules)
@@ -583,10 +583,14 @@ def restore_etc_hosts(port):
 
 
 # This are some classes and functions used to support pf in yosemite. 
-class pf_state_xport(Union):
-    _fields_ = [("port", c_uint16),
-                ("call_id", c_uint16),
-                ("spi", c_uint32)]
+if sys.platform == "darwin":
+        class pf_state_xport(Union):
+            _fields_ = [("port", c_uint16),
+                        ("call_id", c_uint16),
+                        ("spi", c_uint32)]
+else:
+        class pf_state_xport(Union):
+            _fields_ = [("port", c_uint16)]
 
 class pf_addr(Structure):
     class _pfa(Union):
@@ -613,7 +617,10 @@ class pfioc_natlook(Structure):
                 ("proto_variant", c_uint8),
                 ("direction", c_uint8)]
 
-pfioc_rule = c_char * 3104  # sizeof(struct pfioc_rule)
+if sys.platform == "darwin":
+	pfioc_rule = c_char * 3104  # sizeof(struct pfioc_rule)
+else:
+	pfioc_rule = c_char * 3040  # sizeof(struct pfioc_rule)
 
 pfioc_pooladdr = c_char * 1136 # sizeof(struct pfioc_pooladdr) 
 
@@ -664,7 +671,10 @@ def pf_add_anchor_rule(type, name):
     ACTION_OFFSET = 0
     POOL_TICKET_OFFSET = 8
     ANCHOR_CALL_OFFSET = 1040
-    RULE_ACTION_OFFSET = 3068
+    if sys.platform == "darwin":
+    	RULE_ACTION_OFFSET = 3068
+    else:
+        RULE_ACTION_OFFSET = 2968 
 
     pr = pfioc_rule()
     ppa = pfioc_pooladdr()
